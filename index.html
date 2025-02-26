@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US States Map</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        svg { background-color: #f0f0f0; margin-top: 20px; }
+        .state { opacity: 0.8; cursor: pointer; transition: fill 0.2s; }
+        .tooltip { 
+            position: absolute; 
+            background: white; 
+            padding: 5px 10px; 
+            border: 1px solid black; 
+            font-size: 12px; 
+            pointer-events: none; 
+            display: none;
+        }
+        .dropdown { margin: 20px; }
+        .city { fill: orange; }
+    </style>
+</head>
+<body>
+    <h2>US States Map</h2>
+    <div>
+        <select class="dropdown" id="shape-selector">
+            <option value="circle">Circle Version</option>
+            <option value="hexagon">Hexagon Version</option>
+            <option value="square">Square Version</option>
+        </select>
+        <input type="number" id="shape-size" placeholder="Size" value="15" style="width: 50px; margin-left: 10px;">
+    </div>
+    <svg width="1000" height="600"></svg>
+    <div class="tooltip"></div>
+
+    <script>
+        const width = 1000, height = 600;
+        const svg = d3.select("svg");
+        const projection = d3.geoAlbersUsa().translate([width / 2, height / 2]).scale(1200);
+        const tooltip = d3.select(".tooltip");
+
+        const states = [ 
+            { name: "Alabama", lat: 32.8, lon: -86.8, cities: ["Birmingham", "Montgomery", "Mobile"] },
+            { name: "Alaska", lat: 61.3, lon: -152.4, cities: ["Anchorage", "Fairbanks", "Juneau"] },
+            { name: "Arizona", lat: 33.7, lon: -111.4, cities: ["Phoenix", "Tucson", "Mesa"] },
+            { name: "Arkansas", lat: 34.9, lon: -92.3, cities: ["Little Rock", "Fort Smith", "Fayetteville"] },
+            { name: "California", lat: 36.1, lon: -119.6, cities: ["Los Angeles", "San Francisco", "San Diego"] },
+            { name: "Colorado", lat: 39.0, lon: -105.3, cities: ["Denver", "Colorado Springs", "Aurora"] },
+            { name: "Connecticut", lat: 41.5, lon: -72.7, cities: ["Hartford", "New Haven", "Stamford"] },
+            { name: "Delaware", lat: 39.3, lon: -75.5, cities: ["Wilmington", "Dover", "Newark"] },
+            { name: "Florida", lat: 27.9, lon: -81.7, cities: ["Miami", "Orlando", "Tampa"] },
+            { name: "Georgia", lat: 32.1, lon: -82.9, cities: ["Atlanta", "Savannah", "Augusta"] },
+            { name: "Hawaii", lat: 20.7, lon: -157.9, cities: ["Honolulu", "Hilo", "Kailua"] },
+            { name: "Idaho", lat: 44.2, lon: -114.4, cities: ["Boise", "Nampa", "Meridian"] },
+            { name: "Illinois", lat: 40.3, lon: -88.9, cities: ["Chicago", "Aurora", "Naperville"] },
+            { name: "Indiana", lat: 39.8, lon: -86.2, cities: ["Indianapolis", "Fort Wayne", "Evansville"] },
+            { name: "Iowa", lat: 42.0, lon: -93.2, cities: ["Des Moines", "Cedar Rapids", "Davenport"] },
+            { name: "Kansas", lat: 38.5, lon: -96.7, cities: ["Wichita", "Overland Park", "Kansas City"] },
+            { name: "Kentucky", lat: 37.6, lon: -84.6, cities: ["Louisville", "Lexington", "Bowling Green"] },
+            { name: "Louisiana", lat: 31.1, lon: -91.8, cities: ["New Orleans", "Baton Rouge", "Shreveport"] },
+            { name: "Maine", lat: 44.6, lon: -69.3, cities: ["Portland", "Augusta", "Bangor"] },
+            { name: "Maryland", lat: 39.0, lon: -76.8, cities: ["Baltimore", "Annapolis", "Rockville"] },
+            { name: "Massachusetts", lat: 42.2, lon: -71.5, cities: ["Boston", "Worcester", "Springfield"] },
+            { name: "Michigan", lat: 44.3, lon: -85.6, cities: ["Detroit", "Grand Rapids", "Ann Arbor"] },
+            { name: "Minnesota", lat: 46.7, lon: -94.6, cities: ["Minneapolis", "Saint Paul", "Rochester"] },
+            { name: "Mississippi", lat: 32.7, lon: -89.6, cities: ["Jackson", "Gulfport", "Southaven"] },
+            { name: "Missouri", lat: 38.4, lon: -92.2, cities: ["Kansas City", "St. Louis", "Springfield"] },
+            { name: "Montana", lat: 46.9, lon: -110.4, cities: ["Billings", "Missoula", "Great Falls"] },
+            { name: "Nebraska", lat: 41.1, lon: -98.2, cities: ["Omaha", "Lincoln", "Bellevue"] },
+            { name: "Nevada", lat: 38.3, lon: -117.0, cities: ["Las Vegas", "Reno", "Henderson"] },
+            { name: "New Hampshire", lat: 43.4, lon: -71.5, cities: ["Manchester", "Nashua", "Concord"] },
+            { name: "New Jersey", lat: 40.2, lon: -74.5, cities: ["Newark", "Jersey City", "Paterson"] },
+            { name: "New Mexico", lat: 34.8, lon: -106.2, cities: ["Albuquerque", "Santa Fe", "Las Cruces"] },
+            { name: "New York", lat: 42.1, lon: -74.9, cities: ["New York City", "Buffalo", "Rochester"] },
+            { name: "North Carolina", lat: 35.6, lon: -79.8, cities: ["Charlotte", "Raleigh", "Greensboro"] },
+            { name: "North Dakota", lat: 47.5, lon: -99.7, cities: ["Fargo", "Bismarck", "Grand Forks"] },
+            { name: "Ohio", lat: 40.3, lon: -82.7, cities: ["Columbus", "Cleveland", "Cincinnati"] },
+            { name: "Oklahoma", lat: 35.5, lon: -96.9, cities: ["Oklahoma City", "Tulsa", "Norman"] },
+            { name: "Oregon", lat: 44.5, lon: -122.0, cities: ["Portland", "Salem", "Eugene"] },
+            { name: "Pennsylvania", lat: 40.5, lon: -77.2, cities: ["Philadelphia", "Pittsburgh", "Allentown"] },
+            { name: "Rhode Island", lat: 41.6, lon: -71.5, cities: ["Providence", "Cranston", "Warwick"] },
+            { name: "South Carolina", lat: 33.8, lon: -80.9, cities: ["Columbia", "Charleston", "Greenville"] },
+            { name: "South Dakota", lat: 44.2, lon: -99.4, cities: ["Sioux Falls", "Rapid City", "Aberdeen"] },
+            { name: "Tennessee", lat: 35.7, lon: -86.6, cities: ["Nashville", "Memphis", "Knoxville"] },
+            { name: "Texas", lat: 31.0, lon: -97.5, cities: ["Houston", "San Antonio", "Dallas"] },
+            { name: "Utah", lat: 39.5, lon: -111.7, cities: ["Salt Lake City", "Provo", "West Valley City"] },
+            { name: "Vermont", lat: 44.0, lon: -72.7, cities: ["Burlington", "Essex", "South Burlington"] },
+            { name: "Virginia", lat: 37.5, lon: -79.5, cities: ["Virginia Beach", "Norfolk", "Chesapeake"] },
+            { name: "Washington", lat: 47.4, lon: -120.5, cities: ["Seattle", "Spokane", "Tacoma"] },
+            { name: "West Virginia", lat: 38.6, lon: -80.5, cities: ["Charleston", "Huntington", "Morgantown"] },
+            { name: "Wisconsin", lat: 44.5, lon: -89.5, cities: ["Milwaukee", "Madison", "Green Bay"] },
+            { name: "Wyoming", lat: 42.8, lon: -107.4, cities: ["Cheyenne", "Casper", "Laramie"] },
+        ];
+
+        const drawStates = (shape, size) => {
+            svg.selectAll(".state").remove();
+            states.forEach(state => {
+                const coords = projection([state.lon, state.lat]);
+                if (!coords) return; // Skip if projection fails (e.g., out of bounds)
+
+                if (shape === "circle") {
+                    svg.append("circle")
+                        .attr("class", "state")
+                        .attr("cx", coords[0])
+                        .attr("cy", coords[1])
+                        .attr("r", size)
+                        .attr("fill", "steelblue")
+                        .on("mouseover", () => {
+                            tooltip.style("display", "block")
+                                   .text(`${state.name}: ${state.cities.join(", ")}`);
+                        })
+                        .on("mousemove", (event) => {
+                            tooltip.style("left", (event.pageX + 5) + "px")
+                                   .style("top", (event.pageY - 25) + "px");
+                        })
+                        .on("mouseout", () => {
+                            tooltip.style("display", "none");
+                        });
+                } else if (shape === "hexagon") {
+                    const hexagonPoints = [
+                        [coords[0] + size * Math.cos(0), coords[1] + size * Math.sin(0)],
+                        [coords[0] + size * Math.cos(Math.PI / 3), coords[1] + size * Math.sin(Math.PI / 3)],
+                        [coords[0] + size * Math.cos(2 * Math.PI / 3), coords[1] + size * Math.sin(2 * Math.PI / 3)],
+                        [coords[0] + size * Math.cos(Math.PI), coords[1] + size * Math.sin(Math.PI)],
+                        [coords[0] + size * Math.cos(4 * Math.PI / 3), coords[1] + size * Math.sin(4 * Math.PI / 3)],
+                        [coords[0] + size * Math.cos(5 * Math.PI / 3), coords[1] + size * Math.sin(5 * Math.PI / 3)]
+                    ];
+                    svg.append("polygon")
+                        .attr("class", "state")
+                        .attr("points", hexagonPoints.map(d => d.join(",")).join(" "))
+                        .attr("fill", "steelblue")
+                        .on("mouseover", () => {
+                            tooltip.style("display", "block")
+                                   .text(`${state.name}: ${state.cities.join(", ")}`);
+                        })
+                        .on("mousemove", (event) => {
+                            tooltip.style("left", (event.pageX + 5) + "px")
+                                   .style("top", (event.pageY - 25) + "px");
+                        })
+                        .on("mouseout", () => {
+                            tooltip.style("display", "none");
+                        });
+                } else if (shape === "square") {
+                    svg.append("rect")
+                        .attr("class", "state")
+                        .attr("x", coords[0] - size / 2)
+                        .attr("y", coords[1] - size / 2)
+                        .attr("width", size)
+                        .attr("height", size)
+                        .attr("fill", "steelblue")
+                        .on("mouseover", () => {
+                            tooltip.style("display", "block")
+                                   .text(`${state.name}: ${state.cities.join(", ")}`);
+                        })
+                        .on("mousemove", (event) => {
+                            tooltip.style("left", (event.pageX + 5) + "px")
+                                   .style("top", (event.pageY - 25) + "px");
+                        })
+                        .on("mouseout", () => {
+                            tooltip.style("display", "none");
+                        });
+                }
+            });
+        };
+
+        drawStates("circle", 15); // Initial shape
+
+        d3.select("#shape-selector").on("change", function() {
+            const shape = this.value;
+            const size = +d3.select("#shape-size").property("value");
+            drawStates(shape, size);
+        });
+
+        d3.select("#shape-size").on("input", function() {
+            const shape = d3.select("#shape-selector").property("value");
+            const size = +this.value;
+            drawStates(shape, size);
+        });
+    </script>
+</body>
+</html>
